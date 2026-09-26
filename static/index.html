@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Authentication System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .auth-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            border-radius: 10px;
+            margin: 0 5px;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .voice-sample {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .voice-sample.recording {
+            border-color: #dc3545;
+            background: rgba(220, 53, 69, 0.05);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .voice-sample.recorded {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.05);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        .waveform-container {
+            height: 100px;
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .waveform {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .record-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            font-size: 2rem;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        
+        .record-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .record-btn.recording {
+            animation: recordPulse 1s infinite;
+        }
+        
+        @keyframes recordPulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        
+        .play-btn, .rerecord-btn, .cancel-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .play-btn:hover, .rerecord-btn:hover, .cancel-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .audio-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 1rem;
+        }
+        
+        .sample-status {
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .sample-status.pending {
+            color: #6c757d;
+        }
+        
+        .sample-status.recording {
+            color: #dc3545;
+        }
+        
+        .sample-status.recorded {
+            color: #28a745;
+        }
+        
+        .submit-section {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+        }
+        
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .loading .loading-spinner {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="auth-container">
+            <h1 class="text-center mb-4">
+                <i class="fas fa-microphone-alt text-primary"></i>
+                Voice Authentication System
+            </h1>
+            
+            <ul class="nav nav-tabs justify-content-center" id="authTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab">
+                        <i class="fas fa-user-plus"></i> Register
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="train-tab" data-bs-toggle="tab" data-bs-target="#train" type="button" role="tab">
+                        <i class="fas fa-brain"></i> Train Model
+                    </button>
+                </li>
+            </ul>
+            
+            <div class="tab-content mt-4" id="authTabsContent">
+                <!-- Registration Tab -->
+                <div class="tab-pane fade show active" id="register" role="tabpanel">
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label for="registerUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="registerUsername" required>
+                        </div>
+                        
+                        <h5 class="mb-3">Record 3 Voice Samples</h5>
+                        <p class="text-muted">Please record the same phrase 3 times for better authentication accuracy.</p>
+                        
+                        <!-- Sample 1 -->
+                        <div class="voice-sample" data-sample="1">
+                            <div class="sample-status pending">
+                                <i class="fas fa-microphone"></i> Sample 1 - Ready to Record
+                            </div>
+                            <div class="waveform-container">
+                                <canvas class="waveform" id="waveform1"></canvas>
+                            </div>
+                            <div class="audio-controls">
+                                <button type="button" class="record-btn btn btn-danger" data-sample="1">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button type="button" class="play-btn btn btn-success" data-sample="1" style="display: none;">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button type="button" class="rerecord-btn btn btn-warning" data-sample="1" style="display: none;">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button type="button" class="cancel-btn btn btn-secondary" data-sample="1" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Sample 2 -->
+                        <div class="voice-sample" data-sample="2">
+                            <div class="sample-status pending">
+                                <i class="fas fa-microphone"></i> Sample 2 - Ready to Record
+                            </div>
+                            <div class="waveform-container">
+                                <canvas class="waveform" id="waveform2"></canvas>
+                            </div>
+                            <div class="audio-controls">
+                                <button type="button" class="record-btn btn btn-danger" data-sample="2">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button type="button" class="play-btn btn btn-success" data-sample="2" style="display: none;">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button type="button" class="rerecord-btn btn btn-warning" data-sample="2" style="display: none;">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button type="button" class="cancel-btn btn btn-secondary" data-sample="2" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Sample 3 -->
+                        <div class="voice-sample" data-sample="3">
+                            <div class="sample-status pending">
+                                <i class="fas fa-microphone"></i> Sample 3 - Ready to Record
+                            </div>
+                            <div class="waveform-container">
+                                <canvas class="waveform" id="waveform3"></canvas>
+                            </div>
+                            <div class="audio-controls">
+                                <button type="button" class="record-btn btn btn-danger" data-sample="3">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button type="button" class="play-btn btn btn-success" data-sample="3" style="display: none;">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button type="button" class="rerecord-btn btn btn-warning" data-sample="3" style="display: none;">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button type="button" class="cancel-btn btn btn-secondary" data-sample="3" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="submit-section">
+                            <button type="submit" class="btn btn-primary btn-lg" id="registerSubmit" disabled>
+                                <span class="loading-spinner spinner-border spinner-border-sm me-2"></span>
+                                <i class="fas fa-user-plus"></i> Register User
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Login Tab -->
+                <div class="tab-pane fade" id="login" role="tabpanel">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="loginUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="loginUsername" required>
+                        </div>
+                        
+                        <h5 class="mb-3">Record Voice Sample</h5>
+                        <p class="text-muted">Please record your voice for authentication.</p>
+                        
+                        <div class="voice-sample" data-sample="login">
+                            <div class="sample-status pending">
+                                <i class="fas fa-microphone"></i> Ready to Record
+                            </div>
+                            <div class="waveform-container">
+                                <canvas class="waveform" id="waveformLogin"></canvas>
+                            </div>
+                            <div class="audio-controls">
+                                <button type="button" class="record-btn btn btn-danger" data-sample="login">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button type="button" class="play-btn btn btn-success" data-sample="login" style="display: none;">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button type="button" class="rerecord-btn btn btn-warning" data-sample="login" style="display: none;">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button type="button" class="cancel-btn btn btn-secondary" data-sample="login" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="submit-section">
+                            <button type="submit" class="btn btn-success btn-lg" id="loginSubmit" disabled>
+                                <span class="loading-spinner spinner-border spinner-border-sm me-2"></span>
+                                <i class="fas fa-sign-in-alt"></i> Authenticate
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Train Model Tab -->
+                <div class="tab-pane fade" id="train" role="tabpanel">
+                    <div class="text-center">
+                        <h5 class="mb-3">Train Voice Recognition Model</h5>
+                        <p class="text-muted">Train the AI model with all registered voice samples to improve authentication accuracy.</p>
+                        
+                        <button type="button" class="btn btn-primary btn-lg" id="trainModel">
+                            <span class="loading-spinner spinner-border spinner-border-sm me-2"></span>
+                            <i class="fas fa-brain"></i> Train Model
+                        </button>
+                        
+                        <div id="trainingProgress" class="mt-3" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                            </div>
+                            <small class="text-muted">Training in progress... This may take a few minutes.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Alert Messages -->
+            <div id="alertContainer" class="mt-3"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js"></script>
+    <script>
+        class VoiceRecorder {
+		constructor() {
+		    this.mediaRecorder = null;
+		    this.audioChunks = [];
+		    this.recordings = {};
+		    this.isRecording = false;
+		    this.currentSample = null;
+		    this.animationId = null;
+		    this.audioContext = null;
+		    this.analyser = null;
+		    this.dataArray = null;
+		    
+		    // Add MP3 encoding properties
+		    this.mp3Encoder = null;
+		    this.mp3Data = [];
+		    this.processor = null;
+		    this.input = null;
+		    this.globalStream = null;
+		    
+		    this.init();
+		}            
+            async init() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    this.setupAudioContext(stream);
+                    this.setupEventListeners();
+                } catch (error) {
+                    this.showAlert('Error accessing microphone. Please allow microphone access.', 'danger');
+                }
+            }
+            
+            setupAudioContext(stream) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.analyser = this.audioContext.createAnalyser();
+                const source = this.audioContext.createMediaStreamSource(stream);
+                source.connect(this.analyser);
+                
+                this.analyser.fftSize = 256;
+                this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+            }
+            
+            setupEventListeners() {
+                // Record buttons
+                document.querySelectorAll('.record-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const sample = e.target.closest('button').dataset.sample;
+                        this.toggleRecording(sample);
+                    });
+                });
+                
+                // Play buttons
+                document.querySelectorAll('.play-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const sample = e.target.closest('button').dataset.sample;
+                        this.playRecording(sample);
+                    });
+                });
+                
+                // Rerecord buttons
+                document.querySelectorAll('.rerecord-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const sample = e.target.closest('button').dataset.sample;
+                        this.rerecord(sample);
+                    });
+                });
+                
+                // Cancel buttons
+                document.querySelectorAll('.cancel-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const sample = e.target.closest('button').dataset.sample;
+                        this.cancelRecording(sample);
+                    });
+                });
+                
+                // Form submissions
+                document.getElementById('registerForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.submitRegistration();
+                });
+                
+                document.getElementById('loginForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.submitLogin();
+                });
+                
+                document.getElementById('trainModel').addEventListener('click', () => {
+                    this.trainModel();
+                });
+            }
+            
+            async toggleRecording(sample) {
+                if (this.isRecording && this.currentSample === sample) {
+                    this.stopRecording();
+                } else if (!this.isRecording) {
+                    await this.startRecording(sample);
+                }
+            }
+async startRecording(sample) {
+    try {
+        // Reset MP3 data
+        this.mp3Data = [];
+        this.mp3Encoder = new lamejs.Mp3Encoder(1, 44100, 128); // mono, 44.1kHz, 128 kbps
+        
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.globalStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.input = this.audioContext.createMediaStreamSource(this.globalStream);
+        this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+        
+        this.input.connect(this.processor);
+        this.processor.connect(this.audioContext.destination);
+        
+        this.processor.onaudioprocess = (e) => {
+            if (!this.isRecording || this.currentSample !== sample) return;
+            
+            const channelData = e.inputBuffer.getChannelData(0);
+            const samples = this.convertFloat32ToInt16(channelData);
+            const mp3buf = this.mp3Encoder.encodeBuffer(samples);
+            if (mp3buf.length > 0) {
+                this.mp3Data.push(new Int8Array(mp3buf));
+            }
+        };
+        
+        this.currentSample = sample;
+        this.isRecording = true;
+        this.updateUI(sample, 'recording');
+        this.startWaveformAnimation(sample);
+        
+        // Auto-stop after 10 seconds (matching second code)
+        setTimeout(() => {
+            if (this.isRecording && this.currentSample === sample) {
+                this.stopRecording();
+            }
+        }, 10000);
+        
+    } catch (error) {
+        this.showAlert('Error starting recording: ' + error.message, 'danger');
+    }
+}
+
+	stopRecording() {
+	    if (!this.isRecording) return;
+	    
+	    this.isRecording = false;
+	    
+	    // Flush MP3 encoder buffer
+	    const mp3buf = this.mp3Encoder.flush();
+	    if (mp3buf.length > 0) {
+		this.mp3Data.push(new Int8Array(mp3buf));
+	    }
+	    
+	    // Create MP3 blob
+	    const mp3Blob = new Blob(this.mp3Data, { type: 'audio/mp3' });
+	    this.recordings[this.currentSample] = mp3Blob;
+	    
+	    // Clean up
+	    this.processor.disconnect();
+	    this.input.disconnect();
+	    this.globalStream.getTracks().forEach(track => track.stop());
+	    this.audioContext.close();
+	    
+	    this.updateUI(this.currentSample, 'recorded');
+	    this.checkAllRecorded();
+	    this.stopWaveformAnimation();
+	    this.currentSample = null;
+	}
+
+	convertFloat32ToInt16(buffer) {
+	    let l = buffer.length;
+	    const int16Buffer = new Int16Array(l);
+	    while (l--) {
+	        int16Buffer[l] = Math.min(1, buffer[l]) * 0x7FFF;
+	    }
+	    return int16Buffer;
+	}
+            
+        playRecording(sample) {
+                if (this.recordings[sample]) {
+                    const audio = new Audio(URL.createObjectURL(this.recordings[sample]));
+                    audio.play();
+                }
+            }
+            
+            rerecord(sample) {
+                delete this.recordings[sample];
+                this.updateUI(sample, 'pending');
+                this.checkAllRecorded();
+            }
+            
+            cancelRecording(sample) {
+                if (this.isRecording && this.currentSample === sample) {
+                    this.stopRecording();
+                    this.currentSample = null;
+                }
+                delete this.recordings[sample];
+                this.updateUI(sample, 'pending');
+                this.checkAllRecorded();
+            }
+            
+            updateUI(sample, status) {
+                const container = document.querySelector(`[data-sample="${sample}"]`);
+                const statusEl = container.querySelector('.sample-status');
+                const recordBtn = container.querySelector('.record-btn');
+                const playBtn = container.querySelector('.play-btn');
+                const rerecordBtn = container.querySelector('.rerecord-btn');
+                const cancelBtn = container.querySelector('.cancel-btn');
+                
+                // Update container classes
+                container.classList.remove('recording', 'recorded');
+                statusEl.classList.remove('pending', 'recording', 'recorded');
+                
+                switch (status) {
+                    case 'recording':
+                        container.classList.add('recording');
+                        statusEl.classList.add('recording');
+                        statusEl.innerHTML = '<i class="fas fa-record-vinyl"></i> Recording... (click to stop)';
+                        recordBtn.classList.add('recording');
+                        recordBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                        playBtn.style.display = 'none';
+                        rerecordBtn.style.display = 'none';
+                        cancelBtn.style.display = 'inline-block';
+                        break;
+                        
+                    case 'recorded':
+                        container.classList.add('recorded');
+                        statusEl.classList.add('recorded');
+                        statusEl.innerHTML = `<i class="fas fa-check-circle"></i> Sample ${sample === 'login' ? '' : sample} Recorded (MP3)`;
+                        recordBtn.classList.remove('recording');
+                        recordBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                        playBtn.style.display = 'inline-block';
+                        rerecordBtn.style.display = 'inline-block';
+                        cancelBtn.style.display = 'inline-block';
+                        break;
+                        
+                    case 'pending':
+                    default:
+                        statusEl.classList.add('pending');
+                        statusEl.innerHTML = `<i class="fas fa-microphone"></i> Sample ${sample === 'login' ? '' : sample} - Ready to Record`;
+                        recordBtn.classList.remove('recording');
+                        recordBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                        playBtn.style.display = 'none';
+                        rerecordBtn.style.display = 'none';
+                        cancelBtn.style.display = 'none';
+                        break;
+                }
+            }
+            
+            startWaveformAnimation(sample) {
+                const canvas = document.getElementById(sample === 'login' ? 'waveformLogin' : `waveform${sample}`);
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                
+                const animate = () => {
+                    if (!this.isRecording || this.currentSample !== sample) return;
+                    
+                    this.analyser.getByteFrequencyData(this.dataArray);
+                    
+                    ctx.fillStyle = '#f8f9fa';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    const barWidth = (canvas.width / this.dataArray.length) * 2.5;
+                    let barHeight;
+                    let x = 0;
+                    
+                    for (let i = 0; i < this.dataArray.length; i++) {
+                        barHeight = (this.dataArray[i] / 255) * canvas.height;
+                        
+                        const r = barHeight + (25 * (i / this.dataArray.length));
+                        const g = 250 * (i / this.dataArray.length);
+                        const b = 50;
+                        
+                        ctx.fillStyle = `rgb(${r},${g},${b})`;
+                        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                        
+                        x += barWidth + 1;
+                    }
+                    
+                    this.animationId = requestAnimationFrame(animate);
+                };
+                
+                animate();
+            }
+            
+            stopWaveformAnimation() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
+            
+            checkAllRecorded() {
+                // For registration, check if all 3 samples are recorded
+                const isRegisterTab = document.getElementById('register').classList.contains('active');
+                const isLoginTab = document.getElementById('login').classList.contains('active');
+                
+                if (isRegisterTab) {
+                    const allRecorded = [1, 2, 3].every(i => this.recordings[i]);
+                    document.getElementById('registerSubmit').disabled = !allRecorded;
+                } else if (isLoginTab) {
+                    const loginRecorded = this.recordings['login'];
+                    document.getElementById('loginSubmit').disabled = !loginRecorded;
+                }
+            }
+
+	    async submitRegistration() {
+		    const username = document.getElementById('registerUsername').value.trim();
+		    if (!username) {
+			this.showAlert('Please enter a username', 'warning');
+			return;
+		    }
+
+		    const submitBtn = document.getElementById('registerSubmit');
+		    submitBtn.classList.add('loading');
+		    submitBtn.disabled = true;
+
+		    try {
+			const formData = new FormData();
+			formData.append('username', username);
+        
+			// Add all 3 recorded samples as MP3
+			for (let i = 1; i <= 3; i++) {
+			    formData.append('files', this.recordings[i], `sample_${i}.mp3`);
+			}
+
+			const response = await fetch('/register/', {
+			    method: 'POST',
+			    body: formData
+			});
+
+			const data = await response.json();
+
+			if (response.ok && data.success) {
+			    this.showAlert(`Registration successful for ${username}! You can now train the model and login.`, 'success');
+			    this.resetForm('register');
+			} else {
+			    throw new Error(data.detail || 'Registration failed');
+			}
+
+		    } catch (error) {
+			this.showAlert('Registration failed: ' + error.message, 'danger');
+		    } finally {
+			submitBtn.classList.remove('loading');
+			submitBtn.disabled = false;
+		    }
+		}
+       
+            async submitLogin() {
+                const username = document.getElementById('loginUsername').value.trim();
+                if (!username) {
+                    this.showAlert('Please enter a username', 'warning');
+                    return;
+                }
+                
+                const submitBtn = document.getElementById('loginSubmit');
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('username', username);
+                    formData.append('file', this.recordings['login'], 'login_sample.mp3');
+                    
+                    const response = await fetch('/login/', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        if (data.success) {
+                            this.showAlert(`Login successful! Welcome ${username}. Confidence: ${(data.confidence * 100).toFixed(1)}%`, 'success');
+				setTimeout(() => {
+					window.location.href = data.redirect || "/home/";
+					}, 1500);
+                        } else {
+                            this.showAlert(`Authentication failed. Predicted: ${data.predicted_user}, Confidence: ${(data.confidence * 100).toFixed(1)}%`, 'danger');
+                        }
+                    } else {
+                        throw new Error(data.detail || 'Login failed');
+                    }
+                    
+                } catch (error) {
+                    this.showAlert('Login failed: ' + error.message, 'danger');
+                } finally {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                }
+            }
+            
+            async trainModel() {
+                const trainBtn = document.getElementById('trainModel');
+                const progressDiv = document.getElementById('trainingProgress');
+                
+                trainBtn.classList.add('loading');
+                trainBtn.disabled = true;
+                progressDiv.style.display = 'block';
+                
+                try {
+                    const response = await fetch('/train/', {
+                        method: 'POST'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok && data.success) {
+                        this.showAlert('Model training completed successfully! You can now use voice authentication.', 'success');
+                    } else {
+                        throw new Error(data.detail || 'Training failed');
+                    }
+                    
+                } catch (error) {
+                    this.showAlert('Training failed: ' + error.message, 'danger');
+                } finally {
+                    trainBtn.classList.remove('loading');
+                    trainBtn.disabled = false;
+                    progressDiv.style.display = 'none';
+                }
+            }
+            
+            resetForm(formType) {
+                if (formType === 'register') {
+                    document.getElementById('registerUsername').value = '';
+                    [1, 2, 3].forEach(i => {
+                        delete this.recordings[i];
+                        this.updateUI(i, 'pending');
+                    });
+                    document.getElementById('registerSubmit').disabled = true;
+                } else if (formType === 'login') {
+                    document.getElementById('loginUsername').value = '';
+                    delete this.recordings['login'];
+                    this.updateUI('login', 'pending');
+                    document.getElementById('loginSubmit').disabled = true;
+                }
+            }
+            
+            showAlert(message, type) {
+                const alertContainer = document.getElementById('alertContainer');
+                const alertId = 'alert-' + Date.now();
+                
+                const alertHtml = `
+                    <div class="alert alert-${type} alert-dismissible fade show" id="${alertId}" role="alert">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'danger' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                
+                alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+                
+                // Auto-dismiss after 5 seconds
+                setTimeout(() => {
+                    const alert = document.getElementById(alertId);
+                    if (alert) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                }, 5000);
+            }
+        }
+        
+        // Tab switching event handlers
+        document.getElementById('authTabs').addEventListener('shown.bs.tab', (event) => {
+            const activeTab = event.target.id;
+            
+            // Reset forms when switching tabs
+            if (activeTab === 'register-tab') {
+                voiceRecorder.resetForm('register');
+            } else if (activeTab === 'login-tab') {
+                voiceRecorder.resetForm('login');
+            }
+        });
+        
+        // Initialize the voice recorder when page loads
+        let voiceRecorder;
+        document.addEventListener('DOMContentLoaded', () => {
+            voiceRecorder = new VoiceRecorder();
+        });
+        
+        // Handle browser compatibility
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            document.addEventListener('DOMContentLoaded', () => {
+                const alertContainer = document.getElementById('alertContainer');
+                alertContainer.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Your browser does not support audio recording. Please use a modern browser like Chrome, Firefox, or Safari.
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html> 

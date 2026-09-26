@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: voice-authentication-api
+    runtime: docker
+    plan: 1c-2g
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: voice-authentication-db
+          property: connectionString
+      - key: AES_KEY
+        generateValue: true
+      - key: TRAINING_API_KEY
+        generateValue: true
+      - key: FRONTEND_ORIGINS
+        value: https://voice-authentication-api.onrender.com
+      - key: ENABLE_DEBUG_AUDIO
+        value: "false"
+
+databases:
+  - name: voice-authentication-db
+    plan: 0.5c-1g
+    postgresMajorVersion: "18"

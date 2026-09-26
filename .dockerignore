@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+.ipynb_checkpoints
+*.db
+best_model.h5
+voice samples
+voice_samples
+training_data
+datasets
+README.md
