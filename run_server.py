@@ -2,13 +2,21 @@
 """Run the Voice Authentication API locally."""
 
 import os
+from pathlib import Path
 
 import uvicorn
+from dotenv import load_dotenv
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
+# Load environment variables from the project root .env file.
+load_dotenv(BASE_DIR / ".env")
 
 
 if __name__ == "__main__":
-    os.makedirs("static", exist_ok=True)
-    os.makedirs("voice_model", exist_ok=True)
+    os.makedirs(BASE_DIR / "static", exist_ok=True)
+    os.makedirs(BASE_DIR / "voice_model", exist_ok=True)
 
     uvicorn.run(
         "main:app",
